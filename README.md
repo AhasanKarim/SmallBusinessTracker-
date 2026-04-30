@@ -61,7 +61,7 @@ nano .env
 ```
 
 ```env
-APP_PASSWORD=ReplaceWithSomethingStrong
+APP_PASSWORD=changeme
 ```
 
 This password is used the first time the app runs. On the first successful login it is hashed with bcrypt and stored in the database. After that it can be rotated from **Settings → Change password**, and `APP_PASSWORD` can be removed from `.env`.
