@@ -6,7 +6,7 @@ import { setFlash } from "@/lib/flash";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const settingsUrl = new URL("/settings", req.url);
+  const settingsUrl = redirectUrl(req, "/settings");
   try {
     const formData = await req.formData();
     const file = formData.get("backup");
@@ -38,6 +38,20 @@ export async function POST(req: Request) {
     setFlash(`Import failed: ${msg}`, "error");
     return NextResponse.redirect(settingsUrl, { status: 303 });
   }
+}
+
+/**
+ * Build a redirect URL using the *browser-supplied* host header rather than
+ * `req.url`. In a Docker standalone build the server binds to 0.0.0.0, so
+ * `req.url` ends up as http://0.0.0.0:3000/... which is not a routable address
+ * from the client's perspective.
+ */
+function redirectUrl(req: Request, path: string): URL {
+  const host = req.headers.get("host") || "localhost:3000";
+  const proto =
+    req.headers.get("x-forwarded-proto") ||
+    (req.url.startsWith("https") ? "https" : "http");
+  return new URL(path, `${proto}://${host}`);
 }
 
 function plural(n: number): string {
