@@ -12,6 +12,7 @@ Forking and customization is documented separately in [CUSTOMIZATION.md](CUSTOMI
 - Password-protected. Single-user; the password is hashed and stored in the database.
 - Light and dark themes.
 - CSV export for income and expenses, scoped by year.
+- Portable ZIP export/import for moving an entire instance (records, files, settings) to another server. Format documented in [IMPORT_FORMAT.md](IMPORT_FORMAT.md).
 - Runs as a single Docker container with SQLite — small footprint, single-file backups.
 
 ## Tech stack
@@ -98,7 +99,7 @@ All configuration is via environment variables. Full list in `.env.example`.
 
 **Reports** — monthly income / expense / profit table. Gear vs non-gear totals. Expenses by category, credit card, and payment method. Income by payment method. CSV export scoped by year. Tax collected / paid / net (only when tax tracking is enabled).
 
-**Settings** — business profile, currency, tax configuration, custom logo upload, theme (light / dark / system), password change.
+**Settings** — business profile, currency, tax configuration, custom logo upload, theme (light / dark / system), password change, data export/import (portable ZIP backup; full format reference in [IMPORT_FORMAT.md](IMPORT_FORMAT.md)).
 
 ## Project structure
 
@@ -122,6 +123,8 @@ All configuration is via environment variables. Full list in `.env.example`.
 │   │   ├── login/page.tsx
 │   │   └── api/
 │   │       ├── auth/login + logout
+│   │       ├── data/export           # downloads ZIP backup
+│   │       ├── data/import           # accepts ZIP backup
 │   │       ├── documents/[id]/file   # serves uploaded files
 │   │       ├── logo                  # serves the custom logo
 │   │       └── reports/csv           # CSV export

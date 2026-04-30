@@ -129,6 +129,58 @@ export default async function SettingsPage() {
         </form>
       </section>
 
+      <section className="card mb-6 max-w-2xl p-5">
+        <h2 className="mb-1 text-base font-semibold">Data</h2>
+        <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+          Export everything as a portable ZIP, or restore from a backup file.
+          Format reference: <code className="rounded bg-slate-100 px-1 py-0.5 text-xs dark:bg-slate-700">IMPORT_FORMAT.md</code>
+          {" "}in the project repository.
+        </p>
+
+        <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+          <p className="mb-2 text-sm font-medium">Export</p>
+          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+            Includes all events, income, expenses, credit cards, documents (with file blobs), and business settings.
+            The session password is <strong>not</strong> exported.
+          </p>
+          <a href="/api/data/export" className="btn-primary">
+            Download backup (.zip)
+          </a>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+          <p className="mb-2 text-sm font-medium">Import / restore</p>
+          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+            Upload a ZIP produced by this tool, or one prepared to match the format documented in
+            <code className="mx-1 rounded bg-slate-100 px-1 py-0.5 text-xs dark:bg-slate-700">IMPORT_FORMAT.md</code>.
+          </p>
+          <form action="/api/data/import" method="POST" encType="multipart/form-data" className="space-y-3">
+            <div>
+              <label className="label">Backup file (.zip)</label>
+              <input type="file" name="backup" accept=".zip,application/zip" required className="input" />
+            </div>
+            <fieldset className="space-y-1.5 text-sm">
+              <legend className="label mb-1">Import mode</legend>
+              <label className="flex items-start gap-2">
+                <input type="radio" name="mode" value="merge" defaultChecked className="mt-1" />
+                <span>
+                  <span className="font-medium">Merge</span>
+                  <span className="ml-1 text-slate-500 dark:text-slate-400">— append imported records to existing data. Settings, password, and current logo are preserved.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input type="radio" name="mode" value="replace" className="mt-1" />
+                <span>
+                  <span className="font-medium text-red-700 dark:text-red-400">Replace</span>
+                  <span className="ml-1 text-slate-500 dark:text-slate-400">— wipe all events, income, expenses, cards, documents, and settings, then import. Password and login are preserved.</span>
+                </span>
+              </label>
+            </fieldset>
+            <button type="submit" className="btn-secondary">Restore from backup</button>
+          </form>
+        </div>
+      </section>
+
       <section className="card mt-6 max-w-md p-5">
         <h2 className="mb-3 text-base font-semibold">Change password</h2>
         <form action={changePassword} className="space-y-3">
