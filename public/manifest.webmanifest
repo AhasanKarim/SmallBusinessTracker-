@@ -1,0 +1,11 @@
+{
+  "name": "Small Business Tracker",
+  "short_name": "SB Tracker",
+  "description": "Track income, expenses, events, and receipts.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#264bd1",
+  "orientation": "portrait-primary",
+  "icons": []
+}

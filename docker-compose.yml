@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    image: small-business-tracker:latest
+    container_name: sbt
+    restart: unless-stopped
+    ports:
+      # Host:Container — change the LEFT side if 3000 is already in use on the host.
+      - "3030:3000"
+    environment:
+      # Provide a strong session secret. Generate with: openssl rand -base64 48
+      SESSION_SECRET: ${SESSION_SECRET:-please-change-me-to-a-long-random-string-min-32-chars}
+      # First-run plaintext password — replaced by a stored hash on first successful login.
+      APP_PASSWORD: ${APP_PASSWORD:-changeme}
+      # Or, instead, supply a pre-hashed password (preferred):
+      # APP_PASSWORD_HASH: "$2a$12$..."
+      DATABASE_URL: "file:/app/data/app.db"
+      UPLOAD_DIR: "/app/data/uploads"
+      # Set SEED=1 once if you want demo data on a fresh DB.
+      SEED: ${SEED:-0}
+    volumes:
+      - sbt-data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/login >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  sbt-data:

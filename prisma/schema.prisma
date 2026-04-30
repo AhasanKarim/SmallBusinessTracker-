@@ -1,0 +1,160 @@
+// Small Business Tracker — Prisma schema
+// SQLite for lightweight single-container deployment.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Settings (single row keyed id="singleton")
+// ---------------------------------------------------------------------------
+model BusinessSettings {
+  id              String   @id @default("singleton")
+  businessName    String   @default("My Business")
+  country         String   @default("Canada")
+  province        String   @default("Nova Scotia")
+  currency        String   @default("CAD")
+  taxRegistered   Boolean  @default(false)
+  taxType         String   @default("HST") // HST | GST | PST | CUSTOM
+  defaultTaxRate  Float?   // e.g. 0.15 for 15% — nullable so it can stay unconfigured
+  logoStorageKey  String?  // path under UPLOAD_DIR for the custom business logo
+  logoMimeType    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Auth — single user; password hash stored in DB after first set
+// ---------------------------------------------------------------------------
+model AuthCredential {
+  id           String   @id @default("singleton")
+  passwordHash String
+  updatedAt    DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Credit Cards — user-managed, never hardcoded
+// ---------------------------------------------------------------------------
+model CreditCard {
+  id        String    @id @default(cuid())
+  name      String
+  last4     String?
+  active    Boolean   @default(true)
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  incomes   Income[]
+  expenses  Expense[]
+}
+
+// ---------------------------------------------------------------------------
+// Events / Jobs (e.g. a wedding shoot)
+// ---------------------------------------------------------------------------
+model Event {
+  id            String     @id @default(cuid())
+  name          String
+  clientName    String?
+  eventDate     DateTime?  // start date (or only date)
+  endDate       DateTime?  // for multi-day events
+  location      String?
+  notes         String?
+  invoiceTotal  Float      @default(0)
+  amountPaid    Float      @default(0)
+  // payment status is derived but cached for filtering: UNPAID | PARTIAL | PAID
+  paymentStatus String     @default("UNPAID")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  incomes       Income[]
+  expenses      Expense[]
+  documents     Document[]
+}
+
+// ---------------------------------------------------------------------------
+// Income entries
+// ---------------------------------------------------------------------------
+model Income {
+  id             String     @id @default(cuid())
+  date           DateTime
+  clientName     String?
+  // money — store subtotal/tax/total separately so tax mode is optional
+  subtotal       Float?
+  taxAmount      Float?
+  total          Float
+  taxIncluded    Boolean    @default(false)
+  paymentMethod  String     // CASH | DEBIT | CREDIT_CARD | ETRANSFER | CHEQUE | OTHER
+  invoiceNumber  String?
+  invoiceSent    Boolean    @default(false)
+  // E-transfer specifics — optional, only meaningful when paymentMethod = ETRANSFER
+  transactionId  String?
+  etransferEmail String?
+  notes          String?
+  eventId        String?
+  event          Event?     @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  creditCardId   String?
+  creditCard     CreditCard? @relation(fields: [creditCardId], references: [id], onDelete: SetNull)
+  documents      Document[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([date])
+  @@index([eventId])
+}
+
+// ---------------------------------------------------------------------------
+// Expenses
+// ---------------------------------------------------------------------------
+model Expense {
+  id            String      @id @default(cuid())
+  date          DateTime
+  vendor        String?
+  category      String      // GEAR | COFFEE_TEAM_FOOD | MEALS | GAS | RIDE | PARKING | SOFTWARE | STUDIO_RENT | PROPS | PRINTING | MARKETING | OTHER
+  expenseType   String      // GEAR | NON_GEAR
+  subtotal      Float?
+  taxAmount     Float?
+  total         Float
+  taxIncluded   Boolean     @default(false)
+  paymentMethod String      // CASH | DEBIT | CREDIT_CARD | ETRANSFER | CHEQUE | OTHER
+  notes         String?
+  eventId       String?
+  event         Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  creditCardId  String?
+  creditCard    CreditCard? @relation(fields: [creditCardId], references: [id], onDelete: SetNull)
+  documents     Document[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([date])
+  @@index([category])
+  @@index([eventId])
+}
+
+// ---------------------------------------------------------------------------
+// Documents — receipts, invoices, contracts, other.
+// Linkable to Event / Income / Expense (zero or one of each).
+// ---------------------------------------------------------------------------
+model Document {
+  id          String   @id @default(cuid())
+  filename    String   // original filename
+  storageKey  String   // relative path under UPLOAD_DIR
+  mimeType    String
+  sizeBytes   Int
+  kind        String   @default("OTHER") // RECEIPT | INVOICE | CONTRACT | OTHER
+  notes       String?
+  eventId     String?
+  event       Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  incomeId    String?
+  income      Income?  @relation(fields: [incomeId], references: [id], onDelete: SetNull)
+  expenseId   String?
+  expense     Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([kind])
+  @@index([eventId])
+  @@index([incomeId])
+  @@index([expenseId])
+}

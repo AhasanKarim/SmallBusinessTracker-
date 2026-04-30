@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -rnE '\\\\$\\\\{[^}]*\\\\?[^\"]*\"[^\"]*\"[^\"]*\\\\}' src --include=\"*.tsx\")",
+      "Bash(python3 -)",
+      "Bash(grep -rnE '\"\\\\s*\\\\?\\\\s*\"[^\"]*$' src --include=\"*.tsx\")"
+    ]
+  }
+}
