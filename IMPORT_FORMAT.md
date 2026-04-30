@@ -1,14 +1,14 @@
 # Backup / Import File Format
 
-This document describes the portable archive format used by Small Business Tracker for **export** and **import**. It is stable for archive `version: 1`.
+This document describes the portable archive format used by Small Business Tracker for **export** and **import**. The format is stable for archive `version: 1`.
 
-The format is intentionally simple — a ZIP file containing JSON plus the original uploaded files — so anyone can prepare an archive from another tool (QuickBooks, Wave, a spreadsheet, a different self-hosted tracker, etc.) and import it.
+The format is intentionally simple — a ZIP file containing JSON plus the original uploaded files — so it can be produced from another tool (QuickBooks, Wave, a spreadsheet, a different self-hosted tracker) without any special tooling.
 
 ---
 
 ## Contents
 
-1. [Where to find this in the app](#where-to-find-this-in-the-app)
+1. [Where it lives in the app](#where-it-lives-in-the-app)
 2. [Archive layout](#archive-layout)
 3. [`manifest.json`](#manifestjson)
 4. [`data.json` schema](#datajson-schema)
@@ -18,18 +18,18 @@ The format is intentionally simple — a ZIP file containing JSON plus the origi
 8. [Minimum viable archive](#minimum-viable-archive)
 9. [Migrating from other tools](#migrating-from-other-tools)
 10. [Building an archive in code](#building-an-archive-in-code)
+11. [Versioning](#versioning)
 
 ---
 
-## Where to find this in the app
+## Where it lives in the app
 
-**Settings → Data**:
-- **Download backup (.zip)** generates a fresh archive in this format.
-- **Restore from backup** accepts an archive in this format.
+The format is exposed in two places:
 
-The same endpoints are also reachable as plain HTTP:
-- `GET /api/data/export` → returns a ZIP download
-- `POST /api/data/import` (multipart/form-data; fields `backup` = file, `mode` = `merge` | `replace`)
+- **Settings → Data** in the UI: a button to download the current state as a backup, and a form to restore from one.
+- **HTTP endpoints**:
+  - `GET /api/data/export` — returns a ZIP download.
+  - `POST /api/data/import` — accepts `multipart/form-data` with fields `backup` (file) and `mode` (`merge` | `replace`).
 
 Both endpoints sit behind the standard auth — a valid session cookie is required.
 
@@ -37,7 +37,7 @@ Both endpoints sit behind the standard auth — a valid session cookie is requir
 
 ## Archive layout
 
-The archive is a standard ZIP file:
+The archive is a standard ZIP file with the following structure:
 
 ```
 sbt-backup-2026-04-30.zip
@@ -52,8 +52,8 @@ sbt-backup-2026-04-30.zip
 ```
 
 - All paths in the ZIP use forward slashes.
-- File names under `uploads/` match exactly the `storageKey` field of the corresponding `Document` (or `BusinessSettings.logoStorageKey`).
-- The folder structure `YYYY-MM/<random>.<ext>` is the convention this app uses, but the importer treats `storageKey` as opaque — any relative path works as long as `data.json` and the actual file path agree.
+- File names under `uploads/` match exactly the `storageKey` field of the corresponding `Document` row (or `BusinessSettings.logoStorageKey`).
+- The folder structure `YYYY-MM/<random>.<ext>` is the convention this app uses, but the importer treats `storageKey` as opaque — any relative path is acceptable as long as `data.json` and the actual file path agree.
 
 ---
 
@@ -78,8 +78,8 @@ sbt-backup-2026-04-30.zip
 | --- | --- | --- | --- |
 | `version` | **yes** | number | Format version. Importer rejects archives with `version` newer than it understands. |
 | `exportedAt` | recommended | ISO 8601 string | When the archive was created. Informational. |
-| `source` | recommended | string | Tool that produced the archive. Informational. |
-| `counts` | optional | object | Row counts. Informational — importer doesn't enforce them. |
+| `source` | recommended | string | The tool that produced the archive. Informational. |
+| `counts` | optional | object | Row counts. Informational — not enforced by the importer. |
 
 A minimal valid manifest is just `{ "version": 1 }`.
 
@@ -149,7 +149,7 @@ Restored only in `replace` mode (see [Import behavior](#import-behavior)).
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| **`id`** | string | yes (for relations) | Used only for cross-table id mapping during import. New CUIDs are generated for the DB. Any unique string works. |
+| **`id`** | string | yes (for relations) | Used only for cross-table id mapping during import. New CUIDs are generated for the DB. Any unique string is acceptable. |
 | **`name`** | string | yes | Cards without a name are skipped with a warning. |
 | `last4` | string or null | no | Last 4 digits, no spaces. |
 | `active` | boolean | no | Defaults to `true`. |
@@ -176,11 +176,11 @@ Restored only in `replace` mode (see [Import behavior](#import-behavior)).
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| **`id`** | string | yes (for relations) | See note on `creditCards[].id`. |
+| **`id`** | string | yes (for relations) | Same conventions as `creditCards[].id`. |
 | **`name`** | string | yes | Events without a name are skipped. |
 | `clientName` | string or null | no | |
 | `eventDate` | ISO 8601 or null | no | Start date for multi-day events; the only date for single-day. |
-| `endDate` | ISO 8601 or null | no | Omit for single-day events. |
+| `endDate` | ISO 8601 or null | no | Omitted for single-day events. |
 | `location` | string or null | no | |
 | `notes` | string or null | no | |
 | `invoiceTotal` | number | no | Defaults to `0`. |
@@ -220,14 +220,14 @@ Restored only in `replace` mode (see [Import behavior](#import-behavior)).
 | `taxAmount` | number or null | no | |
 | **`total`** | number | yes | Rows missing `total` are skipped with a warning. |
 | `taxIncluded` | boolean | no | |
-| **`paymentMethod`** | string | recommended | One of `CASH`, `DEBIT`, `CREDIT_CARD`, `ETRANSFER`, `CHEQUE`, `OTHER`. Unknown values stored as-is. Defaults to `"OTHER"`. |
+| **`paymentMethod`** | string | recommended | One of `CASH`, `DEBIT`, `CREDIT_CARD`, `ETRANSFER`, `CHEQUE`, `OTHER`. Unknown values are stored as-is. Defaults to `"OTHER"`. |
 | `transactionId` | string or null | no | Only meaningful when `paymentMethod === "ETRANSFER"`. |
 | `etransferEmail` | string or null | no | Only meaningful when `paymentMethod === "ETRANSFER"`. |
 | `invoiceNumber` | string or null | no | |
 | `invoiceSent` | boolean | no | |
 | `notes` | string or null | no | |
-| `eventId` | string or null | no | Must match an `events[].id` in the same archive, or it's set to `null` in the imported row. |
-| `creditCardId` | string or null | no | Must match a `creditCards[].id` in the same archive, or set to `null`. |
+| `eventId` | string or null | no | Must match an `events[].id` in the same archive, or the imported row's `eventId` is set to `null`. |
+| `creditCardId` | string or null | no | Same matching rule against `creditCards[].id`. |
 | `createdAt` | ISO 8601 | no | |
 
 ### `expenses[]`
@@ -257,7 +257,7 @@ Restored only in `replace` mode (see [Import behavior](#import-behavior)).
 | `date` | ISO 8601 | no | Defaults to import time. |
 | `vendor` | string or null | no | |
 | **`category`** | string | recommended | One of: `GEAR`, `COFFEE_TEAM_FOOD`, `MEALS`, `GAS`, `RIDE`, `PARKING`, `SOFTWARE`, `STUDIO_RENT`, `PROPS`, `PRINTING`, `MARKETING`, `OTHER`. Unknown categories are stored as-is and shown verbatim in the UI. |
-| **`expenseType`** | `GEAR` or `NON_GEAR` | recommended | If anything other than `"GEAR"`, treated as `"NON_GEAR"`. |
+| **`expenseType`** | `GEAR` or `NON_GEAR` | recommended | Anything other than `"GEAR"` is treated as `"NON_GEAR"`. |
 | `subtotal` | number or null | no | |
 | `taxAmount` | number or null | no | |
 | **`total`** | number | yes | Rows missing `total` are skipped with a warning. |
@@ -306,13 +306,14 @@ Restored only in `replace` mode (see [Import behavior](#import-behavior)).
 Every file referenced by `Document.storageKey` (and the `BusinessSettings.logoStorageKey`) **must** be present in the ZIP under `uploads/<storageKey>`.
 
 Rules:
-- Path inside the ZIP: `uploads/` + the exact `storageKey` string.
+
+- The path inside the ZIP is `uploads/` + the exact `storageKey` string.
 - Forward-slash separators only.
-- The path is opaque to the importer — it doesn't have to follow the `YYYY-MM/<random>.<ext>` convention. `uploads/anything/i/want.pdf` is fine.
-- During import, every file is **rewritten** to a freshly-generated key (`<current YYYY-MM>/<16-hex>.<ext>`). The original key is only used to find the bytes inside the ZIP.
+- The path is opaque to the importer — the `YYYY-MM/<random>.<ext>` convention isn't required. `uploads/anything/i/want.pdf` is valid.
+- During import, every file is rewritten to a freshly-generated key (`<current YYYY-MM>/<16-hex>.<ext>`). The original key is only used to find the bytes inside the ZIP.
 - Missing files don't fail the import — the affected document rows are skipped, and warnings are returned.
 
-There is no size limit imposed by the importer beyond the host's available memory and disk. (The ZIP is loaded into memory in this implementation; very large archives could OOM on small servers.)
+There is no size limit imposed by the importer beyond the host's available memory and disk. The current implementation loads the ZIP into memory in full; very large archives could OOM on small servers.
 
 ---
 
@@ -326,21 +327,24 @@ There is no size limit imposed by the importer beyond the host's available memor
 | `replace` | All credit cards, events, income, expenses, documents (and their files on disk). Old logo file. | All record arrays AND `settings` (including the logo). |
 
 In **both modes**:
-- The `AuthCredential` (login password) is **never** modified by import. The session-secret-signed cookies remain valid.
-- The `BusinessSettings` row id is always `"singleton"` — it's created if missing.
+
+- The `AuthCredential` (login password) is **never** modified by import. Existing sessions remain valid.
+- The `BusinessSettings` row id is always `"singleton"` — created if missing.
 
 ### ID remapping
 
 IDs in the archive are treated as opaque tokens. The importer:
+
 1. Generates a new CUID for each inserted row.
 2. Builds an in-memory map `{ archive-id → new-id }` per table.
 3. When inserting child rows (e.g. `incomes`), looks up `eventId` / `creditCardId` / etc. in the parent maps and substitutes the new id. If the lookup fails, the foreign key is set to `null` and the row still imports.
 
-This means archive IDs can be anything that's unique within their table — `"old-cuid"`, `"42"`, `"acme-card-1"`, whatever. They never appear in the database.
+This means archive IDs can be anything that is unique within their table — `"old-cuid"`, `"42"`, `"acme-card-1"`. They never appear in the database.
 
 ### Order of operations
 
 The importer processes record arrays in this order so foreign keys can be resolved:
+
 1. `creditCards`
 2. `events`
 3. `incomes`
@@ -349,18 +353,20 @@ The importer processes record arrays in this order so foreign keys can be resolv
 
 Within each array, records are inserted in the order they appear.
 
-### What happens on partial failure
+### Partial-failure semantics
 
 The import is **not** transactional. If the process dies halfway:
+
 - Rows already inserted stay in the database.
 - Files already written to `uploads/` stay on disk.
-- The next import attempt with the same archive in `merge` mode would create duplicates.
+- Re-running the same archive in `merge` mode would create duplicates.
 
-For a failed-but-partial import, the simplest recovery is to run the import again in `replace` mode (which wipes first).
+Recovery from a failed-but-partial import: re-run the import in `replace` mode (which wipes first).
 
 ### Warnings
 
 The HTTP response from `POST /api/data/import` contains a flash toast summarising counts and warning count. The full warning list is logged to the server console. Warnings include:
+
 - `"manifest.json missing — not a valid backup archive"` (fatal)
 - `"Archive was produced by a newer version of the app (vN); this server understands up to vN"` (fatal)
 - `"Skipped credit card with no name"`
@@ -373,15 +379,16 @@ The HTTP response from `POST /api/data/import` contains a flash toast summarisin
 
 ## Validation rules
 
-The importer is **lenient** by design — anything reasonable will be coerced rather than rejected. Specifically:
+The importer is **lenient** by design — anything reasonable is coerced rather than rejected. Specifically:
 
-- Missing `null` / empty string for an optional field → stored as `null`.
+- Missing values, `null`, or empty string for an optional field → stored as `null`.
 - Numbers as strings (`"1500"`) → parsed via `Number()`.
 - Dates as strings → parsed via `new Date()`. Invalid dates fall back to import time (or `null` for fields where `null` is allowed).
 - Boolean coercion uses JS truthy/falsy with a `!!` cast.
 - Unknown enum values for `paymentMethod`, `category`, `kind` are stored as-is. The UI will show the raw token.
 
 Hard requirements (rows are skipped if missing):
+
 - `creditCards[].name`
 - `events[].name`
 - `incomes[].total`
@@ -389,6 +396,7 @@ Hard requirements (rows are skipped if missing):
 - `documents[].filename` and `documents[].storageKey`
 
 Hard requirements at the archive level (whole import fails):
+
 - `manifest.json` exists and contains `version: number`
 - `manifest.version <= 1` (current importer)
 - `data.json` exists and is valid JSON
@@ -397,7 +405,7 @@ Hard requirements at the archive level (whole import fails):
 
 ## Minimum viable archive
 
-Smallest possible legal archive — adds one income row and nothing else:
+The smallest possible legal archive — adds one income row and nothing else:
 
 **`manifest.json`**
 ```json
@@ -413,13 +421,13 @@ Smallest possible legal archive — adds one income row and nothing else:
 }
 ```
 
-ZIP it (`zip mini.zip manifest.json data.json`) and import. You'll get one income row dated 2026-04-30 for $100 cash. No event link, no client, no documents.
+Zipping these two files (`zip mini.zip manifest.json data.json`) produces a valid archive. Importing it adds one income row dated 2026-04-30 for $100 cash with no event link, no client, and no documents.
 
 ---
 
 ## Migrating from other tools
 
-The format is intentionally close to a CSV column set, so converting from a spreadsheet or another tool is mostly a matter of writing a small script. A few starting points:
+Conversion from another tool is mostly a matter of writing a small script that maps source columns to the schemas above and emits a ZIP.
 
 ### From a CSV of income rows
 
@@ -444,19 +452,19 @@ with zipfile.ZipFile("import.zip", "w", zipfile.ZIP_DEFLATED) as z:
 print(f"Wrote {len(incomes)} income rows to import.zip")
 ```
 
-Then **Settings → Data → Restore from backup → Merge → Restore**.
+The resulting `import.zip` can be uploaded via **Settings → Data → Restore from backup → Merge**.
 
 ### From QuickBooks
 
-QuickBooks exports XLSX. Open in any spreadsheet, save the relevant columns as CSV, then use the script above. For receipts, you'd need to add a `documents[]` array and stuff the file bytes into `uploads/<your-key>` inside the ZIP — see the next section.
+QuickBooks exports XLSX. Converting to CSV in any spreadsheet, then running a CSV → archive script (such as the one above) is the typical path. Receipts can be added by including a `documents[]` array in `data.json` and bundling the file bytes under `uploads/<storageKey>` in the ZIP — see the next section.
 
 ### From Wave / FreshBooks / Xero
 
 Same approach: export the relevant CSVs, map columns to the schemas in this document, write `data.json` + `manifest.json`, ZIP it.
 
-### Mapping common column names
+### Common column-name mapping
 
-| Their column | Our field |
+| External column | Field in this format |
 | --- | --- |
 | Date / Transaction Date | `date` |
 | Customer / Client | `clientName` (income), `clientName` on event |
@@ -473,7 +481,9 @@ Same approach: export the relevant CSVs, map columns to the schemas in this docu
 
 ## Building an archive in code
 
-### Node.js (matches what this app does internally)
+### Node.js
+
+The same library used internally (`jszip`) works for producing archives:
 
 ```js
 const JSZip = require("jszip");
@@ -489,7 +499,7 @@ async function build() {
     expenses: [],
     documents: [],
   }));
-  // If you have document files, add them like:
+  // To bundle a document, the file goes under uploads/ matching its storageKey:
   // zip.file("uploads/2026-04/abc.jpg", fs.readFileSync("./receipt.jpg"));
   const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
   fs.writeFileSync("out.zip", buf);
@@ -498,6 +508,8 @@ build();
 ```
 
 ### Python
+
+Standard library only:
 
 ```python
 import json, zipfile
@@ -509,11 +521,12 @@ with zipfile.ZipFile("out.zip", "w", zipfile.ZIP_DEFLATED) as z:
         "incomes":  [{"id": "i1", "eventId": "e1", "date": "2026-04-30",
                       "total": 250, "paymentMethod": "CASH"}],
     }))
+    # To bundle a document file:
     # with open("receipt.jpg", "rb") as f:
     #     z.writestr("uploads/2026-04/abc.jpg", f.read())
 ```
 
-### Shell + `jq` (no record-relations, just JSON)
+### Shell + `jq` (no document files)
 
 ```bash
 mkdir -p archive/uploads
@@ -532,11 +545,12 @@ jq -n '{
 ## Versioning
 
 This document describes archive `version: 1`. Future format changes will:
-- Bump `version` to `2`, `3`, …
-- Old archives (`version: 1`) will continue to import, with new fields filled by defaults.
-- New archives (`version: 2`) will be **rejected** by older app versions, with a clear error message asking the operator to upgrade.
 
-If you build an automated converter, check the running app's `manifest.json` from a fresh export to see what version it produces, and target that version (or older).
+- Bump `version` to `2`, `3`, …
+- Old archives (`version: 1`) continue to import, with new fields filled by defaults.
+- New archives (`version: 2`) are rejected by older app versions, with a clear error message indicating the required upgrade.
+
+For automated converters: the version produced by a given app instance can be inspected by downloading a fresh export from that instance and reading `manifest.json`.
 
 ---
 
